@@ -617,7 +617,11 @@ public final class ImageCache {
     }
 
     /**
-     * Get a usable cache directory (external if available, internal otherwise)
+     * Get a usable cache directory (external if available, wait otherwise)
+     *
+     * the SGT7 doesn't seem to play well with getExternalCacheDir if external is not mounted yet. 
+     * returns null to initDiskCache() if unavailable and external cache is started if available 
+     * (this stops FC on boot). we don't bother with the internal cache.
      *
      * @param context The {@link Context} to use
      * @param uniqueName A unique directory name to append to the cache
@@ -625,11 +629,12 @@ public final class ImageCache {
      * @return The cache directory
      */
     public static final File getDiskCacheDir(final Context context, final String uniqueName) {
-        final String cachePath = Environment.MEDIA_MOUNTED.equals(Environment
-                .getExternalStorageState()) || !isExternalStorageRemovable() ? getExternalCacheDir(
-                context).getPath() : context.getCacheDir().getPath();
-
-        return new File(cachePath + File.separator + uniqueName);
+	if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) == false) {
+            return null;
+        } else {
+            final String cachePath = getExternalCacheDir(context).getPath();
+            return new File(cachePath + File.separator + uniqueName);
+        }
     }
 
     /**
