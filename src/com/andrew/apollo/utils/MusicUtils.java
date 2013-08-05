@@ -417,6 +417,19 @@ public final class MusicUtils {
     }
 
     /**
+     * @return The audio session Id.
+     */
+    public static final int getAudioSessionId() {
+        if (mService != null) {
+            try {
+                return mService.getAudioSessionId();
+            } catch (final RemoteException ignored) {
+            }
+        }
+        return -1;
+    }
+
+    /**
      * @return The queue.
      */
     public static final long[] getQueue() {
@@ -714,15 +727,17 @@ public final class MusicUtils {
      * Returns the ID for an album.
      *
      * @param context The {@link Context} to use.
-     * @param name The name of the album.
+     * @param albumName The name of the album.
+     * @param artistName The name of the artist
      * @return The ID for an album.
      */
-    public static final long getIdForAlbum(final Context context, final String name) {
+    public static final long getIdForAlbum(final Context context, final String albumName,
+            final String artistName) {
         Cursor cursor = context.getContentResolver().query(
                 MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, new String[] {
                     BaseColumns._ID
-                }, AlbumColumns.ALBUM + "=?", new String[] {
-                    name
+                }, AlbumColumns.ALBUM + "=? AND " + AlbumColumns.ARTIST + "=?", new String[] {
+                    albumName, artistName
                 }, AlbumColumns.ALBUM);
         int id = -1;
         if (cursor != null) {
@@ -734,32 +749,6 @@ public final class MusicUtils {
             cursor = null;
         }
         return id;
-    }
-
-    /**
-     * Returns the artist name for a album.
-     *
-     * @param context The {@link Context} to use.
-     * @param name The name of the album.
-     * @return The artist for an album.
-     */
-    public static final String getAlbumArtist(final Context context, final String name) {
-        Cursor cursor = context.getContentResolver().query(
-                MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, new String[] {
-                    AlbumColumns.ARTIST
-                }, AlbumColumns.ALBUM + "=?", new String[] {
-                    name
-                }, AlbumColumns.ALBUM);
-        String artistName = null;
-        if (cursor != null) {
-            cursor.moveToFirst();
-            if (!cursor.isAfterLast()) {
-                artistName = cursor.getString(0);
-            }
-            cursor.close();
-            cursor = null;
-        }
-        return artistName;
     }
 
     /*  */
@@ -904,19 +893,17 @@ public final class MusicUtils {
 
     /**
      * @param context The {@link Context} to use.
-     * @param name The name of the album.
+     * @param id The id of the album.
      * @return The song count for an album.
      */
-    public static final String getSongCountForAlbum(final Context context, final String name) {
-        if (name == null) {
+    public static final String getSongCountForAlbum(final Context context, final long id) {
+        if (id == -1) {
             return null;
         }
-        Cursor cursor = context.getContentResolver().query(
-                MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, new String[] {
+        Uri uri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, id);
+        Cursor cursor = context.getContentResolver().query(uri, new String[] {
                     AlbumColumns.NUMBER_OF_SONGS
-                }, AlbumColumns.ALBUM + "=?", new String[] {
-                    name
-                }, AlbumColumns.ALBUM);
+                }, null, null, null);
         String songCount = null;
         if (cursor != null) {
             cursor.moveToFirst();
@@ -931,19 +918,17 @@ public final class MusicUtils {
 
     /**
      * @param context The {@link Context} to use.
-     * @param name The name of the album.
+     * @param id The id of the album.
      * @return The release date for an album.
      */
-    public static final String getReleaseDateForAlbum(final Context context, final String name) {
-        if (name == null) {
+    public static final String getReleaseDateForAlbum(final Context context, final long id) {
+        if (id == -1) {
             return null;
         }
-        Cursor cursor = context.getContentResolver().query(
-                MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, new String[] {
+        Uri uri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, id);
+        Cursor cursor = context.getContentResolver().query(uri, new String[] {
                     AlbumColumns.FIRST_YEAR
-                }, AlbumColumns.ALBUM + "=?", new String[] {
-                    name
-                }, AlbumColumns.ALBUM);
+                }, null, null, null);
         String releaseDate = null;
         if (cursor != null) {
             cursor.moveToFirst();
@@ -1143,9 +1128,12 @@ public final class MusicUtils {
         if (cursor != null && cursor.getCount() > 0 && cursor.moveToFirst()) {
             while (!cursor.isAfterLast()) {
                 final Intent intent = new Intent();
-                intent.putExtra("playlist", getIdForPlaylist(context, cursor.getString(1)));
-                subMenu.add(groupId, FragmentMenuItems.PLAYLIST_SELECTED, Menu.NONE,
-                        cursor.getString(1)).setIntent(intent);
+                String name = cursor.getString(1);
+                if (name != null) {
+                    intent.putExtra("playlist", getIdForPlaylist(context, name));
+                    subMenu.add(groupId, FragmentMenuItems.PLAYLIST_SELECTED, Menu.NONE,
+                            name).setIntent(intent);
+                }
                 cursor.moveToNext();
             }
         }
